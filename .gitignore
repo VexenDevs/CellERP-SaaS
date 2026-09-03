@@ -1,0 +1,23 @@
+# environment
+.env
+.env.*
+!.env.example
+
+# .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+# Node
+**/node_modules/
+**/dist/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# logs
+*.log

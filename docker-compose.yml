@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cellerp}
+      POSTGRES_USER: ${POSTGRES_USER:-cellerp}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - cellerp_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cellerp} -d ${POSTGRES_DB:-cellerp}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-cellerp};Username=${POSTGRES_USER:-cellerp};Password=${POSTGRES_PASSWORD:-change-me-local}"
+      JWT_SECRET: ${JWT_SECRET:-development-docker-secret-change-this-before-production-2026}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  cellerp_pg:
