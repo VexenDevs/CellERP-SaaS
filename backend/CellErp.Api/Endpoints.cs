@@ -47,7 +47,22 @@ public static class Endpoints
             var id = principal.UserId();
             var user = await db.Users.IgnoreQueryFilters().SingleAsync(x => x.Id == id);
             Store? store = user.StoreId.HasValue ? await db.Stores.FindAsync(user.StoreId.Value) : null;
-            return Results.Ok(new { user.Id, user.StoreId, user.Username, user.DisplayName, user.Role, user.PermissionsCsv, user.Theme, user.Language, store });
+
+            return Results.Ok(new
+            {
+                user = new
+                {
+                    user.Id,
+                    user.StoreId,
+                    user.Username,
+                    user.DisplayName,
+                    user.Role,
+                    user.PermissionsCsv,
+                    user.Theme,
+                    user.Language
+                },
+                store
+            });
         }).RequireAuthorization();
 
         app.MapPut("/api/auth/profile", async (ProfileRequest req, ClaimsPrincipal principal, AppDbContext db) =>
