@@ -11,7 +11,9 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{Environment.GetEnvironmentVariable("PO
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TenantContext>();
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(ConnectionStringHelper.Resolve(builder.Configuration)));
+builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(
+    ConnectionStringHelper.Resolve(builder.Configuration),
+    npgsqlOptions => npgsqlOptions.EnableRetryOnFailure(maxRetryCount: 5, maxRetryDelay: TimeSpan.FromSeconds(10), errorCodesToAdd: null)));
 builder.Services.AddScoped<JwtService>();
 
 var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("JWT secret missing");
@@ -46,7 +48,8 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    await DbInitializer.InitializeAsync(db);
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    await DbInitializer.InitializeAsync(db, logger);
 }
 
 if (app.Environment.IsDevelopment()) app.UseCors("dev");

@@ -4,10 +4,38 @@ namespace CellErp.Api;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(AppDbContext db)
+    public static async Task InitializeAsync(AppDbContext db, ILogger? logger = null)
     {
-        await db.Database.EnsureCreatedAsync();
-        if (await db.Users.IgnoreQueryFilters().AnyAsync()) return;
+        const int maxAttempts = 5;
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await db.Database.EnsureCreatedAsync();
+                break;
+            }
+            catch (Exception ex)
+            {
+                if (attempt == maxAttempts)
+                {
+                    logger?.LogError(ex, "Database initialization failed after {Attempts} attempts. The application will continue starting; database-dependent requests may fail until connectivity is restored.", attempt);
+                    return;
+                }
+
+                logger?.LogWarning(ex, "Database not reachable yet (attempt {Attempt}/{MaxAttempts}). Retrying in {DelaySeconds}s...", attempt, maxAttempts, attempt * 2);
+                await Task.Delay(TimeSpan.FromSeconds(attempt * 2));
+            }
+        }
+
+        try
+        {
+            if (await db.Users.IgnoreQueryFilters().AnyAsync()) return;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to query database during seed check. Skipping seed step.");
+            return;
+        }
 
         var store = new Store
         {
@@ -79,6 +107,13 @@ public static class DbInitializer
         db.NotificationPreferences.Add(new NotificationPreference { StoreId = store.Id, UserId = owner.Id, DailySummary = true });
         db.Notifications.Add(new Notification { StoreId = store.Id, UserId = owner.Id, EventType = "welcome", Title = "Demo Store lista", Message = "La tienda de prueba quedó inicializada correctamente." });
 
-        await db.SaveChangesAsync();
+        try
+        {
+            await db.SaveChangesAsync();
+        }
+        catch (Exception ex)
+        {
+            logger?.LogError(ex, "Failed to save seed data during database initialization.");
+        }
     }
 }
